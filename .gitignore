@@ -1,0 +1,25 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Data (videos, audio, generated records, local DB)
+data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+
+# Session/tooling
+.remember/
+.claude/settings.local.json
+
+# OS
+Thumbs.db
+.DS_Store
