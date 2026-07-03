@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { streamUrl, type Records } from "../lib/api";
 import DataScroller from "./DataScroller";
+import ChatPanel from "./ChatPanel";
 
 export default function Workspace({ id, records }: { id: string; records: Records }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -31,7 +32,7 @@ export default function Workspace({ id, records }: { id: string; records: Record
         </div>
       </section>
       <DataScroller records={records} currentTime={currentTime} onSeek={seek} />
-      <div className="chatslot" data-seek-target id={`chat-${id}`} />
+      <ChatPanel videoId={id} onSeek={seek} />
     </main>
   );
 }
