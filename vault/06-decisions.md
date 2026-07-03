@@ -2,6 +2,10 @@
 
 Format: date, decision, reason. Newest on top.
 
+## 2026-07-02: MVP code complete on day 1
+
+All 15 plan tasks built, tested (32 backend + 3 frontend tests green), and pushed to https://github.com/BERCAM23/Video-structured-Data-app. Remaining before demo: API keys in backend/.env, live STT verification, end-to-end run with the real Fox video, golden checks, 10-question chat eval, day-3 design polish.
+
 ## 2026-07-02: Hybrid architecture approved
 
 ElevenLabs Scribe v2 for diarized Spanish transcripts ($0.22/hr), Gemini 3.5 Flash for native video analysis (~$1.00/hr), Gemini Flash for summaries (~$0.15/hr), Claude Opus 4.8 for grounded chat. Total ~$1.40/hr on demand, ~$0.90/hr batched. Reason: the flagship "who said it" query needs Spanish diarization with word timestamps, which Gemini alone cannot deliver; all-Anthropic costs 3-5x on visuals. Rejected: all-Gemini, all-Anthropic. No vector DB in MVP; pgvector planned for production. Full spec: `docs/superpowers/specs/2026-07-02-video-intelligence-mvp-design.md`.

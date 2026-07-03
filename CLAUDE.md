@@ -32,4 +32,4 @@ Design and MVP. Nothing is built yet. The MVP definition lives in `vault/03-mvp.
 
 ## Lessons Learned
 
-(Add one concrete rule per mistake made in sessions on this project.)
+- 2026-07-02: Fable burned tokens transcribing plan code inline until Bernardo interrupted. Rule: implementation executes via Sonnet subagents transcribing from the plan; Fable only plans, orchestrates, and reviews (test runs, diff stats, targeted reads). Batch several tasks per subagent to amortize the plan read.
