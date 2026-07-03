@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getRecords, getStatus, uploadVideo, type Records } from "./lib/api";
 import UploadZone from "./components/UploadZone";
 import ProcessingView from "./components/ProcessingView";
+import Workspace from "./components/Workspace";
 
 type Phase =
   | { name: "upload" }
@@ -49,7 +50,7 @@ export default function App() {
       {phase.name === "processing" && (
         <ProcessingView status={phase.status} error={phase.error} />
       )}
-      {phase.name === "workspace" && <div>ready</div>}
+      {phase.name === "workspace" && <Workspace id={phase.id} records={phase.records} />}
     </div>
   );
 }
