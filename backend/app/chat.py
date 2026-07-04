@@ -53,8 +53,8 @@ def build_system(records: dict) -> list[dict]:
     ]
 
 
-def stream_chat(api_key: str, records: dict, messages: list[dict]):
-    client = anthropic.Anthropic(api_key=api_key)
+def stream_chat(api_key: str | None, records: dict, messages: list[dict]):
+    client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
     with client.messages.stream(
         model=MODEL,
         max_tokens=4000,

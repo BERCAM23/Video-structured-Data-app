@@ -4,14 +4,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-REQUIRED_KEYS = ["ELEVENLABS_API_KEY", "GOOGLE_API_KEY", "ANTHROPIC_API_KEY"]
+REQUIRED_KEYS = ["ELEVENLABS_API_KEY", "GOOGLE_API_KEY"]
 
 
 @dataclass(frozen=True)
 class Settings:
     elevenlabs_api_key: str
     google_api_key: str
-    anthropic_api_key: str
+    anthropic_api_key: str | None
     data_dir: Path
 
 
@@ -29,6 +29,6 @@ def load_settings(env: dict | None = None) -> Settings:
     return Settings(
         elevenlabs_api_key=env["ELEVENLABS_API_KEY"],
         google_api_key=env["GOOGLE_API_KEY"],
-        anthropic_api_key=env["ANTHROPIC_API_KEY"],
+        anthropic_api_key=env.get("ANTHROPIC_API_KEY") or None,
         data_dir=data_dir,
     )

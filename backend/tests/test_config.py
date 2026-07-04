@@ -24,3 +24,13 @@ def test_loads_and_creates_data_dir(tmp_path):
     s = load_settings(env)
     assert s.anthropic_api_key == "c"
     assert s.data_dir.exists()
+
+
+def test_anthropic_key_is_optional(tmp_path):
+    env = {
+        "ELEVENLABS_API_KEY": "a",
+        "GOOGLE_API_KEY": "b",
+        "DATA_DIR": str(tmp_path / "d"),
+    }
+    s = load_settings(env)
+    assert s.anthropic_api_key is None
