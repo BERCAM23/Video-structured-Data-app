@@ -1,12 +1,16 @@
+import json
 import re
-
-import anthropic
+import shutil
+import subprocess
+from pathlib import Path
 
 from app.timefmt import fmt_ts
 
 MODEL = "claude-opus-4-8"
 
 CITATION_RE = re.compile(r"\[(?:(\d{1,2}):)?(\d{1,2}):(\d{2})\]")
+
+SESSIONS_FILE = Path("data/chat_sessions.json")
 
 RULES = """Eres el asistente de inteligencia de video de Fox Sports.
 Respondes preguntas sobre UNA transmision usando UNICAMENTE los datos estructurados provistos.
@@ -53,14 +57,65 @@ def build_system(records: dict) -> list[dict]:
     ]
 
 
+def _load_sessions() -> dict:
+    if SESSIONS_FILE.exists():
+        return json.loads(SESSIONS_FILE.read_text(encoding="utf-8"))
+    return {}
+
+
+def _save_sessions(sessions: dict) -> None:
+    SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SESSIONS_FILE.write_text(json.dumps(sessions), encoding="utf-8")
+
+
+def _run_claude(args: list[str], stdin_text: str) -> dict:
+    exe = shutil.which("claude")
+    if exe is None:
+        raise RuntimeError("claude CLI not found on PATH")
+    proc = subprocess.run(
+        [exe, "-p", "--model", "sonnet", "--output-format", "json", *args],
+        input=stdin_text, capture_output=True, text=True, encoding="utf-8",
+        timeout=600,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude CLI failed: {proc.stderr[-500:] or proc.stdout[-500:]}")
+    return json.loads(proc.stdout)
+
+
+def _first_turn_stdin(records: dict, question: str) -> str:
+    return (
+        RULES
+        + "\n\nDATOS ESTRUCTURADOS DEL VIDEO:\n"
+        + serialize_records(records)
+        + "\n\nPREGUNTA DEL USUARIO: "
+        + question
+    )
+
+
 def stream_chat(api_key: str | None, records: dict, messages: list[dict]):
-    client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
-    with client.messages.stream(
-        model=MODEL,
-        max_tokens=4000,
-        thinking={"type": "adaptive"},
-        system=build_system(records),
-        messages=messages,
-    ) as stream:
-        for text in stream.text_stream:
-            yield text
+    question = ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            question = m.get("content", "")
+            break
+
+    video_id = records["video"]["id"]
+    sessions = _load_sessions()
+
+    try:
+        if video_id in sessions:
+            try:
+                result = _run_claude(["--resume", sessions[video_id]], question)
+            except Exception:
+                result = _run_claude([], _first_turn_stdin(records, question))
+                sessions[video_id] = result["session_id"]
+                _save_sessions(sessions)
+        else:
+            result = _run_claude([], _first_turn_stdin(records, question))
+            sessions[video_id] = result["session_id"]
+            _save_sessions(sessions)
+
+        answer = result["result"]
+        yield answer
+    except Exception as e:
+        yield "Error del chat: " + str(e)[:300]

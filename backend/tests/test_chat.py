@@ -1,3 +1,6 @@
+import json
+
+from app import chat
 from app.chat import CITATION_RE, build_system, serialize_records
 
 RECORDS = {
@@ -34,3 +37,19 @@ def test_build_system_caches_the_data_block():
 def test_citation_regex():
     found = CITATION_RE.findall("El gol fue al [01:05] y el festejo al [1:02:05].")
     assert found == [("", "01", "05"), ("1", "02", "05")]
+
+
+def test_stream_chat_yields_result_and_persists_session(tmp_path, monkeypatch):
+    sessions_file = tmp_path / "chat_sessions.json"
+    monkeypatch.setattr(chat, "SESSIONS_FILE", sessions_file)
+
+    def fake_run_claude(args, stdin_text):
+        return {"result": "el gol fue al [01:05]", "session_id": "sess-123"}
+
+    monkeypatch.setattr(chat, "_run_claude", fake_run_claude)
+
+    chunks = list(chat.stream_chat(None, RECORDS, [{"role": "user", "content": "cuando fue el gol?"}]))
+
+    assert chunks == ["el gol fue al [01:05]"]
+    saved = json.loads(sessions_file.read_text(encoding="utf-8"))
+    assert saved == {"v1": "sess-123"}
