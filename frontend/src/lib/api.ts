@@ -33,6 +33,15 @@ export async function uploadVideo(file: File): Promise<{ id: string }> {
   return resp.json();
 }
 
+export type VideoListItem = {
+  id: string; title: string; status: string;
+  duration_s: number | null; created_at: string;
+};
+
+export async function listVideos(): Promise<VideoListItem[]> {
+  return (await ok(await fetch(`${API_BASE}/api/videos`))).json();
+}
+
 export async function getStatus(id: string): Promise<Status> {
   return (await ok(await fetch(`${API_BASE}/api/videos/${id}/status`))).json();
 }

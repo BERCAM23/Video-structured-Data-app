@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getRecords, getStatus, uploadVideo, type Records } from "./lib/api";
+import { getRecords, getStatus, listVideos, uploadVideo, type Records, type VideoListItem } from "./lib/api";
 import UploadZone from "./components/UploadZone";
 import ProcessingView from "./components/ProcessingView";
 import Workspace from "./components/Workspace";
@@ -11,7 +11,14 @@ type Phase =
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>({ name: "upload" });
+  const [videos, setVideos] = useState<VideoListItem[]>([]);
   const pollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (phase.name === "upload") {
+      listVideos().then(setVideos).catch(() => {});
+    }
+  }, [phase.name]);
 
   const startPolling = useCallback((id: string) => {
     const tick = async () => {
@@ -41,12 +48,25 @@ export default function App() {
     startPolling(id);
   };
 
+  const onOpen = async (id: string) => {
+    const s = await getStatus(id);
+    if (s.status === "ready") {
+      const records = await getRecords(id);
+      setPhase({ name: "workspace", id, records });
+    } else {
+      setPhase({ name: "processing", id, status: s.status, error: s.error });
+      startPolling(id);
+    }
+  };
+
   return (
     <div className="app">
       <header className="topbar">
         <span className="brand">FOX <b>VIDEO INTELLIGENCE</b></span>
       </header>
-      {phase.name === "upload" && <UploadZone onFile={onFile} />}
+      {phase.name === "upload" && (
+        <UploadZone onFile={onFile} videos={videos} onOpen={onOpen} />
+      )}
       {phase.name === "processing" && (
         <ProcessingView status={phase.status} error={phase.error} />
       )}
