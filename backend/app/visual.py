@@ -9,7 +9,7 @@ from google import genai
 from google.genai import types
 
 MODEL = "gemini-3.5-flash"
-WINDOW_S = 900
+WINDOW_S = 300
 
 VISUAL_PROMPT = """Eres un analista de video de deportes en television.
 Describe este clip de video segundo a segundo.
@@ -37,16 +37,38 @@ def compute_windows(duration_s: float, window_s: int = WINDOW_S) -> list[tuple[i
     return windows
 
 
-def parse_events(text: str, offset_s: float) -> list[dict]:
+def parse_events(
+    text: str,
+    offset_s: float,
+    window_s: int = WINDOW_S,
+    duration_s: float | None = None,
+) -> list[dict]:
     cleaned = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", text.strip())
     items = json.loads(cleaned)
     events = []
     for item in items:
         if "t_start" not in item or "t_end" not in item or "description" not in item:
             continue
+        raw_start = float(item["t_start"])
+        raw_end = float(item["t_end"])
+        if raw_start >= window_s:
+            # Gemini returned absolute timestamps for this clip; do not add offset.
+            t_start, t_end = raw_start, raw_end
+        else:
+            t_start, t_end = raw_start + offset_s, raw_end + offset_s
+
+        if t_start < 0:
+            continue
+        if duration_s is not None and t_start >= duration_s:
+            continue
+        if duration_s is not None:
+            t_end = min(t_end, duration_s)
+        if t_end < t_start:
+            t_end = t_start
+
         events.append({
-            "t_start": float(item["t_start"]) + offset_s,
-            "t_end": float(item["t_end"]) + offset_s,
+            "t_start": t_start,
+            "t_end": t_end,
             "description": str(item["description"]),
             "on_screen_text": item.get("on_screen_text") or None,
         })
@@ -63,7 +85,7 @@ def _upload_and_wait(client: genai.Client, video_path: Path):
     return uploaded
 
 
-def _analyze_window(client, uploaded, start: int, end: int) -> list[dict]:
+def _analyze_window(client, uploaded, start: int, end: int, duration_s: float | None = None) -> list[dict]:
     part = types.Part(
         file_data=types.FileData(file_uri=uploaded.uri, mime_type=uploaded.mime_type),
         video_metadata=types.VideoMetadata(
@@ -78,7 +100,12 @@ def _analyze_window(client, uploaded, start: int, end: int) -> list[dict]:
                 contents=[types.Content(role="user", parts=[part, types.Part(text=VISUAL_PROMPT)])],
                 config=types.GenerateContentConfig(response_mime_type="application/json"),
             )
-            return parse_events(resp.text, offset_s=start)
+            return parse_events(
+                resp.text,
+                offset_s=start,
+                window_s=(end - start),
+                duration_s=duration_s,
+            )
         except Exception as e:
             last_err = e
             time.sleep(10 * 2**attempt)
@@ -90,7 +117,10 @@ def analyze_video(video_path: Path, duration_s: float, api_key: str) -> list[dic
     uploaded = _upload_and_wait(client, video_path)
     windows = compute_windows(duration_s)
     with ThreadPoolExecutor(max_workers=3) as pool:
-        results = list(pool.map(lambda w: _analyze_window(client, uploaded, *w), windows))
+        results = list(pool.map(
+            lambda w: _analyze_window(client, uploaded, *w, duration_s=duration_s),
+            windows,
+        ))
     events = [e for window_events in results for e in window_events]
     events.sort(key=lambda e: e["t_start"])
     return events

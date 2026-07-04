@@ -25,7 +25,7 @@ def main(video_id: str) -> int:
     speakers = {s["speaker"] for s in segs if s["speaker"] != "EVENT"}
     checks.append((f"multiple speakers ({len(speakers)})", len(speakers) > 1))
 
-    covered = sum(min(e["t_end"], duration) - e["t_start"] for e in evs)
+    covered = sum(max(0.0, min(e["t_end"], duration) - max(e["t_start"], 0.0)) for e in evs)
     ratio = covered / duration if duration else 0
     checks.append((f"visual coverage {ratio:.0%}", ratio >= 0.9))
 
