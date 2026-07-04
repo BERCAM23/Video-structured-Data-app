@@ -50,8 +50,8 @@ def run_pipeline(video_id: str, settings: Settings, db_path: Path) -> None:
         if not summary_path.exists():
             db.set_status(conn, video_id, "summarizing")
             merged = summarize.merge_timeline(segments, events)
-            minutes = summarize.summarize_minutes(merged, duration, settings.google_api_key)
-            info = summarize.summarize_video(minutes, segments, settings.google_api_key)
+            minutes = summarize.summarize_minutes(merged, duration, settings.anthropic_api_key)
+            info = summarize.summarize_video(minutes, segments, settings.anthropic_api_key)
             _write_json(summary_path, {"minutes": minutes, "info": info})
         summary = _read_json(summary_path)
         minutes, info = summary["minutes"], summary["info"]

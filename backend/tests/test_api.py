@@ -44,6 +44,17 @@ def test_records_and_404(tmp_path):
     assert body["transcript_segments"] == []
 
 
+def test_list_videos(tmp_path):
+    client, settings, db_path, _ = make_client(tmp_path)
+    assert client.get("/api/videos").json() == []
+    conn = db.connect(db_path)
+    db.init_db(conn)
+    db.create_video(conn, "v1", "Partido", "source.mp4")
+    items = client.get("/api/videos").json()
+    assert items[0]["id"] == "v1"
+    assert items[0]["status"] == "uploaded"
+
+
 def test_stream_supports_range(tmp_path, tiny_clip):
     client, settings, db_path, _ = make_client(tmp_path)
     with open(tiny_clip, "rb") as f:

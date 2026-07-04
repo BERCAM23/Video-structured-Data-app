@@ -61,6 +61,15 @@ def create_app(settings: Settings, db_path: Path,
         background_tasks.add_task(run_pipeline_fn, video_id)
         return {"id": video_id}
 
+    @app.get("/api/videos")
+    def list_videos():
+        conn = get_conn()
+        rows = conn.execute(
+            "SELECT id, title, status, duration_s, created_at FROM videos ORDER BY created_at DESC"
+        ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+
     @app.get("/api/videos/{video_id}/status")
     def status(video_id: str):
         conn = get_conn()
