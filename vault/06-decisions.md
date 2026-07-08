@@ -2,6 +2,10 @@
 
 Format: date, decision, reason. Newest on top.
 
+## 2026-07-04: Multi-video search engine added (supersedes "single video only" MVP scope)
+
+SQLite FTS5 index over all transcripts, visual events, and key moments; global chat on the home screen retrieves relevant fragments across all videos per question and answers citing [video @ MM:SS] with click-to-open-and-seek. Chat runs through the Claude Code CLI on Bernardo's subscription (direct API calls with subscription tokens are blocked by Anthropic; empirically proven 2026-07-04). Summaries stayed on Gemini. Reason: Bernardo wants the demo to show the actual search-engine product, not just single-video Q&A.
+
 ## 2026-07-02: MVP code complete on day 1
 
 All 15 plan tasks built, tested (32 backend + 3 frontend tests green), and pushed to https://github.com/BERCAM23/Video-structured-Data-app. Remaining before demo: API keys in backend/.env, live STT verification, end-to-end run with the real Fox video, golden checks, 10-question chat eval, day-3 design polish.
