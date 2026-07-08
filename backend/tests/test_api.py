@@ -55,6 +55,19 @@ def test_list_videos(tmp_path):
     assert items[0]["status"] == "uploaded"
 
 
+def test_search_empty(tmp_path):
+    client, *_ = make_client(tmp_path)
+    resp = client.get("/api/search", params={"q": "nada por aqui"})
+    assert resp.status_code == 200
+    assert resp.json() == {"results": []}
+
+
+def test_chat_400_on_empty_messages(tmp_path):
+    client, *_ = make_client(tmp_path)
+    resp = client.post("/api/chat", json={"messages": []})
+    assert resp.status_code == 400
+
+
 def test_stream_supports_range(tmp_path, tiny_clip):
     client, settings, db_path, _ = make_client(tmp_path)
     with open(tiny_clip, "rb") as f:

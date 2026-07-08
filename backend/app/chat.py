@@ -4,6 +4,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from app import db
 from app.timefmt import fmt_ts
 
 MODEL = "claude-opus-4-8"
@@ -113,6 +114,72 @@ def stream_chat(api_key: str | None, records: dict, messages: list[dict]):
         else:
             result = _run_claude([], _first_turn_stdin(records, question))
             sessions[video_id] = result["session_id"]
+            _save_sessions(sessions)
+
+        answer = result["result"]
+        yield answer
+    except Exception as e:
+        yield "Error del chat: " + str(e)[:300]
+
+
+GLOBAL_RULES = """Eres el asistente de busqueda de inteligencia de video de Fox Sports.
+Respondes preguntas sobre TODOS los videos de la base usando UNICAMENTE los resumenes de video y los fragmentos recuperados que se te provean.
+
+Reglas estrictas:
+1. Responde solo con informacion presente en los datos provistos.
+2. Cada afirmacion factual lleva su cita de fuente en formato exacto [<titulo del video> @ MM:SS], usando el separador @.
+3. Si los datos recuperados no contienen la respuesta, dilo claramente.
+4. Responde en el idioma de la pregunta (espanol o ingles).
+5. Se concreto y breve. Nada de relleno."""
+
+
+def build_global_context(conn, question: str) -> str:
+    videos = [
+        dict(r)
+        for r in conn.execute(
+            "SELECT id, title, sport, teams, summary FROM videos WHERE status = 'ready'"
+        ).fetchall()
+    ]
+    parts = ["VIDEOS EN LA BASE:"]
+    for v in videos:
+        summary = (v.get("summary") or "")[:200]
+        parts.append(f"- {v['title']} | {v.get('sport')} | {v.get('teams')} | {summary}")
+
+    parts.append("FRAGMENTOS RECUPERADOS PARA ESTA PREGUNTA:")
+    for hit in db.search(conn, question):
+        content = (hit["content"] or "")[:300]
+        parts.append(f"[{hit['title']} @ {fmt_ts(hit['t_start'])}] ({hit['kind']}) {content}")
+
+    return "\n".join(parts)
+
+
+GLOBAL_SESSION_KEY = "__global__"
+
+
+def stream_global_chat(conn, messages: list[dict]):
+    question = ""
+    for m in reversed(messages):
+        if m.get("role") == "user":
+            question = m.get("content", "")
+            break
+
+    sessions = _load_sessions()
+
+    try:
+        context = build_global_context(conn, question)
+        if GLOBAL_SESSION_KEY in sessions:
+            try:
+                stdin_text = context + "\n\nPREGUNTA: " + question
+                result = _run_claude(["--resume", sessions[GLOBAL_SESSION_KEY]], stdin_text)
+            except Exception:
+                stdin_text = GLOBAL_RULES + "\n\n" + context + "\n\nPREGUNTA: " + question
+                result = _run_claude([], stdin_text)
+                sessions[GLOBAL_SESSION_KEY] = result["session_id"]
+                _save_sessions(sessions)
+        else:
+            stdin_text = GLOBAL_RULES + "\n\n" + context + "\n\nPREGUNTA: " + question
+            result = _run_claude([], stdin_text)
+            sessions[GLOBAL_SESSION_KEY] = result["session_id"]
             _save_sessions(sessions)
 
         answer = result["result"]

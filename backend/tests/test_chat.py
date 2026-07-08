@@ -1,7 +1,7 @@
 import json
 
-from app import chat
-from app.chat import CITATION_RE, build_system, serialize_records
+from app import chat, db
+from app.chat import CITATION_RE, build_system, build_global_context, serialize_records
 
 RECORDS = {
     "video": {"id": "v1", "title": "Final", "duration_s": 130.0, "sport": "futbol",
@@ -53,3 +53,21 @@ def test_stream_chat_yields_result_and_persists_session(tmp_path, monkeypatch):
     assert chunks == ["el gol fue al [01:05]"]
     saved = json.loads(sessions_file.read_text(encoding="utf-8"))
     assert saved == {"v1": "sess-123"}
+
+
+def test_build_global_context(tmp_path):
+    conn = db.connect(tmp_path / "vault.db")
+    db.init_db(conn)
+    db.create_video(conn, "v1", "Final", "f.mp4")
+    db.set_status(conn, "v1", "ready")
+    db.set_video_meta(conn, "v1", sport="futbol", teams="A vs B", summary="gran final entre A y B")
+    seg = [{"t_start": 65.0, "t_end": 68.0, "speaker": "Martinoli", "text": "Increible lo que hizo Chicharito"}]
+    db.replace_records(conn, "v1", seg, [], [], [])
+
+    context = build_global_context(conn, "Chicharito")
+
+    assert "VIDEOS EN LA BASE:" in context
+    assert "- Final | futbol | A vs B | gran final entre A y B" in context
+    assert "FRAGMENTOS RECUPERADOS PARA ESTA PREGUNTA:" in context
+    assert "[Final @ 01:05]" in context
+    assert "@" in context

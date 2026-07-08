@@ -1,5 +1,8 @@
+import re
 import sqlite3
 from pathlib import Path
+
+WORD_RE = re.compile(r"[\wáéíóúñü]+", re.UNICODE)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS videos (
@@ -43,6 +46,9 @@ CREATE TABLE IF NOT EXISTS key_moments (
   t REAL NOT NULL,
   title TEXT NOT NULL,
   description TEXT NOT NULL
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
+  video_id UNINDEXED, kind UNINDEXED, t_start UNINDEXED, content
 );
 """
 
@@ -101,6 +107,7 @@ def replace_records(conn, video_id, segments, events, minutes, moments) -> None:
     with conn:
         for table in ("transcript_segments", "visual_events", "minute_summaries", "key_moments"):
             conn.execute(f"DELETE FROM {table} WHERE video_id = ?", (video_id,))
+        conn.execute("DELETE FROM search_index WHERE video_id = ?", (video_id,))
         conn.executemany(
             "INSERT INTO transcript_segments (video_id, t_start, t_end, speaker, text) VALUES (?, ?, ?, ?, ?)",
             [(video_id, s["t_start"], s["t_end"], s["speaker"], s["text"]) for s in segments],
@@ -117,6 +124,82 @@ def replace_records(conn, video_id, segments, events, minutes, moments) -> None:
             "INSERT INTO key_moments (video_id, t, title, description) VALUES (?, ?, ?, ?)",
             [(video_id, k["t"], k["title"], k["description"]) for k in moments],
         )
+        conn.executemany(
+            "INSERT INTO search_index (video_id, kind, t_start, content) VALUES (?, 'speech', ?, ?)",
+            [(video_id, s["t_start"], f"{s['speaker']}: {s['text']}") for s in segments],
+        )
+        conn.executemany(
+            "INSERT INTO search_index (video_id, kind, t_start, content) VALUES (?, 'visual', ?, ?)",
+            [
+                (
+                    video_id,
+                    e["t_start"],
+                    e["description"] + (f" | {e['on_screen_text']}" if e.get("on_screen_text") else ""),
+                )
+                for e in events
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO search_index (video_id, kind, t_start, content) VALUES (?, 'moment', ?, ?)",
+            [(video_id, k["t"], f"{k['title']}: {k['description']}") for k in moments],
+        )
+
+
+def backfill_search_index(conn) -> None:
+    row = conn.execute("SELECT COUNT(*) AS n FROM search_index").fetchone()
+    if row["n"] > 0:
+        return
+    row = conn.execute("SELECT COUNT(*) AS n FROM transcript_segments").fetchone()
+    if row["n"] == 0:
+        return
+    video_ids = [r["id"] for r in conn.execute("SELECT id FROM videos").fetchall()]
+    with conn:
+        for video_id in video_ids:
+            segments = _rows(conn, "SELECT * FROM transcript_segments WHERE video_id = ?", video_id)
+            events = _rows(conn, "SELECT * FROM visual_events WHERE video_id = ?", video_id)
+            moments = _rows(conn, "SELECT * FROM key_moments WHERE video_id = ?", video_id)
+            conn.executemany(
+                "INSERT INTO search_index (video_id, kind, t_start, content) VALUES (?, 'speech', ?, ?)",
+                [(video_id, s["t_start"], f"{s['speaker']}: {s['text']}") for s in segments],
+            )
+            conn.executemany(
+                "INSERT INTO search_index (video_id, kind, t_start, content) VALUES (?, 'visual', ?, ?)",
+                [
+                    (
+                        video_id,
+                        e["t_start"],
+                        e["description"] + (f" | {e['on_screen_text']}" if e.get("on_screen_text") else ""),
+                    )
+                    for e in events
+                ],
+            )
+            conn.executemany(
+                "INSERT INTO search_index (video_id, kind, t_start, content) VALUES (?, 'moment', ?, ?)",
+                [(video_id, k["t"], f"{k['title']}: {k['description']}") for k in moments],
+            )
+
+
+def search(conn, query: str, limit: int = 40) -> list[dict]:
+    words = []
+    seen = set()
+    for w in WORD_RE.findall(query.lower()):
+        if len(w) < 3 or w in seen:
+            continue
+        seen.add(w)
+        words.append(w)
+    if not words:
+        return []
+    match_query = " OR ".join(words)
+    try:
+        rows = conn.execute(
+            "SELECT s.video_id, s.kind, s.t_start, s.content, v.title "
+            "FROM search_index s JOIN videos v ON v.id = s.video_id "
+            "WHERE search_index MATCH ? ORDER BY rank LIMIT ?",
+            (match_query, limit),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [dict(r) for r in rows]
 
 
 def _rows(conn, sql, video_id):

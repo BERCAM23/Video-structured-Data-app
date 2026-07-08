@@ -26,6 +26,7 @@ def create_app(settings: Settings, db_path: Path,
     )
     conn = db.connect(db_path)
     db.init_db(conn)
+    db.backfill_search_index(conn)
     conn.close()
 
     if run_pipeline_fn is None:
@@ -140,6 +141,28 @@ def create_app(settings: Settings, db_path: Path,
             raise HTTPException(400, "messages required")
         gen = chat.stream_chat(settings.anthropic_api_key, rec, messages)
         return StreamingResponse(gen, media_type="text/plain; charset=utf-8")
+
+    @app.get("/api/search")
+    def search(q: str = ""):
+        conn = get_conn()
+        results = db.search(conn, q)
+        conn.close()
+        return {"results": results}
+
+    @app.post("/api/chat")
+    async def global_chat_endpoint(body: dict):
+        messages = body.get("messages", [])
+        if not messages:
+            raise HTTPException(400, "messages required")
+
+        def stream():
+            conn = get_conn()
+            try:
+                yield from chat.stream_global_chat(conn, messages)
+            finally:
+                conn.close()
+
+        return StreamingResponse(stream(), media_type="text/plain; charset=utf-8")
 
     return app
 

@@ -43,3 +43,28 @@ def test_replace_records_is_idempotent(tmp_path):
     assert rec["minute_summaries"][0]["minute_index"] == 0
     assert rec["key_moments"][0]["title"] == "inicio"
     assert rec["video"]["id"] == "v1"
+
+
+def test_replace_records_populates_search_index_and_search_finds_hit(tmp_path):
+    conn = make(tmp_path)
+    db.create_video(conn, "v1", "Partido", "f.mp4")
+    seg = [{"t_start": 12.5, "t_end": 15.0, "speaker": "Martinoli", "text": "que golazo de Chicharito"}]
+    ev = [{"t_start": 0.0, "t_end": 4.0, "description": "kickoff", "on_screen_text": "0-0"}]
+    mins = [{"minute_index": 0, "summary": "empieza"}]
+    moms = [{"t": 1.0, "title": "inicio", "description": "arranca"}]
+    db.replace_records(conn, "v1", seg, ev, mins, moms)
+
+    hits = db.search(conn, "golazo chicharito")
+    assert len(hits) >= 1
+    assert any(h["kind"] == "speech" and h["video_id"] == "v1" for h in hits)
+
+
+def test_search_with_no_usable_words_returns_empty(tmp_path):
+    conn = make(tmp_path)
+    db.create_video(conn, "v1", "Partido", "f.mp4")
+    seg = [{"t_start": 12.5, "t_end": 15.0, "speaker": "Martinoli", "text": "que golazo de Chicharito"}]
+    db.replace_records(conn, "v1", seg, [], [], [])
+
+    assert db.search(conn, "") == []
+    assert db.search(conn, "a b") == []
+    assert db.search(conn, "!!! ## $$$") == []
