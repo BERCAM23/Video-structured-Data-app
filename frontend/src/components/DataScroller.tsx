@@ -10,6 +10,7 @@ export default function DataScroller({
   records, currentTime, onSeek,
 }: { records: Records; currentTime: number; onSeek: (s: number) => void }) {
   const [tab, setTab] = useState<Tab>("transcript");
+  const [follow, setFollow] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
 
   const items: Item[] = useMemo(() => {
@@ -39,9 +40,13 @@ export default function DataScroller({
   }, [items, currentTime]);
 
   useEffect(() => {
-    const el = listRef.current?.querySelector<HTMLElement>(`[data-idx="${activeIdx}"]`);
-    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [activeIdx]);
+    if (!follow) return;
+    const list = listRef.current;
+    const el = list?.querySelector<HTMLElement>(`[data-idx="${activeIdx}"]`);
+    if (!list || !el) return;
+    const target = el.offsetTop - list.clientHeight / 2 + el.clientHeight / 2;
+    list.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+  }, [activeIdx, follow]);
 
   return (
     <aside className="scroller">
@@ -51,6 +56,9 @@ export default function DataScroller({
             {t === "transcript" ? "Transcripcion" : t === "visual" ? "Visual" : "Momentos"}
           </button>
         ))}
+        <button className={follow ? "on" : ""} onClick={() => setFollow((f) => !f)}>
+          Seguir
+        </button>
       </nav>
       <div className="list" ref={listRef}>
         {items.map((it, i) => (

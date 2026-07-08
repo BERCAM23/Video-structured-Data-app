@@ -3,11 +3,12 @@ import { getRecords, getStatus, listVideos, uploadVideo, type Records, type Vide
 import UploadZone from "./components/UploadZone";
 import ProcessingView from "./components/ProcessingView";
 import Workspace from "./components/Workspace";
+import GlobalSearch from "./components/GlobalSearch";
 
 type Phase =
   | { name: "upload" }
   | { name: "processing"; id: string; status: string; error: string | null }
-  | { name: "workspace"; id: string; records: Records };
+  | { name: "workspace"; id: string; records: Records; initialSeek?: number };
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>({ name: "upload" });
@@ -59,18 +60,34 @@ export default function App() {
     }
   };
 
+  const onOpenVideo = async (title: string, seconds: number) => {
+    const match =
+      videos.find((v) => v.title === title) ??
+      videos.find((v) => v.title.trim().toLowerCase() === title.trim().toLowerCase());
+    if (!match) return;
+    const s = await getStatus(match.id);
+    if (s.status !== "ready") return;
+    const records = await getRecords(match.id);
+    setPhase({ name: "workspace", id: match.id, records, initialSeek: seconds });
+  };
+
   return (
     <div className="app">
       <header className="topbar">
         <span className="brand">FOX <b>VIDEO INTELLIGENCE</b></span>
       </header>
       {phase.name === "upload" && (
-        <UploadZone onFile={onFile} videos={videos} onOpen={onOpen} />
+        <main className="upload">
+          <UploadZone onFile={onFile} videos={videos} onOpen={onOpen} />
+          <GlobalSearch onOpenVideo={onOpenVideo} />
+        </main>
       )}
       {phase.name === "processing" && (
         <ProcessingView status={phase.status} error={phase.error} />
       )}
-      {phase.name === "workspace" && <Workspace id={phase.id} records={phase.records} />}
+      {phase.name === "workspace" && (
+        <Workspace id={phase.id} records={phase.records} initialSeek={phase.initialSeek} />
+      )}
     </div>
   );
 }

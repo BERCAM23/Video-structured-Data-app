@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fmtTs, splitCitations } from "./time";
+import { fmtTs, splitCitations, splitGlobalCitations } from "./time";
 
 describe("fmtTs", () => {
   it("formats minutes and hours", () => {
@@ -23,5 +23,27 @@ describe("splitCitations", () => {
 
   it("returns plain text when no citations", () => {
     expect(splitCitations("hola")).toEqual([{ kind: "text", value: "hola" }]);
+  });
+});
+
+describe("splitGlobalCitations", () => {
+  it("splits text and citations with title and MM:SS", () => {
+    const parts = splitGlobalCitations("Dijo algo [Partido Real Madrid @ 05:30] importante.");
+    expect(parts).toEqual([
+      { kind: "text", value: "Dijo algo " },
+      { kind: "cite", value: "[Partido Real Madrid @ 05:30]", title: "Partido Real Madrid", seconds: 330 },
+      { kind: "text", value: " importante." },
+    ]);
+  });
+
+  it("splits citations with title and H:MM:SS", () => {
+    const parts = splitGlobalCitations("[Final Copa @ 1:02:05]");
+    expect(parts).toEqual([
+      { kind: "cite", value: "[Final Copa @ 1:02:05]", title: "Final Copa", seconds: 3725 },
+    ]);
+  });
+
+  it("returns plain text when no citations", () => {
+    expect(splitGlobalCitations("hola mundo")).toEqual([{ kind: "text", value: "hola mundo" }]);
   });
 });

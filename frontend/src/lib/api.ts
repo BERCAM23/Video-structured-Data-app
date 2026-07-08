@@ -74,3 +74,23 @@ export async function chat(
     onChunk(decoder.decode(value, { stream: true }));
   }
 }
+
+export async function globalChat(
+  messages: ChatMessage[],
+  onChunk: (text: string) => void,
+): Promise<void> {
+  const resp = await ok(
+    await fetch(`${API_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    }),
+  );
+  const reader = resp.body!.getReader();
+  const decoder = new TextDecoder();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    onChunk(decoder.decode(value, { stream: true }));
+  }
+}

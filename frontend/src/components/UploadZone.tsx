@@ -25,37 +25,35 @@ export default function UploadZone({ onFile, videos, onOpen }: Props) {
   };
 
   return (
-    <main className="upload">
-      <div className="upload-col">
-        <div
-          className="dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); handle(e.dataTransfer.files[0]); }}
-          onClick={() => inputRef.current?.click()}
-        >
-          <h1>Sube una transmision</h1>
-          <p>MP4, MOV o MKV. Maximo 3 horas.</p>
-          <p className="hint">{busy ? "Subiendo..." : "Arrastra el archivo o haz clic"}</p>
-          {error && <p className="error">{error}</p>}
-          <input
-            ref={inputRef} type="file" accept=".mp4,.mov,.mkv" hidden
-            onChange={(e) => handle(e.target.files?.[0])}
-          />
-        </div>
-        {videos.length > 0 && (
-          <div className="recent">
-            <h2>Videos procesados</h2>
-            {videos.map((v) => (
-              <button key={v.id} className="recent-item" onClick={() => onOpen(v.id)}>
-                <span>{v.title}</span>
-                <span className="muted">
-                  {v.status === "ready" ? "listo" : v.status === "failed" ? "fallo" : "procesando..."}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+    <div className="upload-col">
+      <div
+        className="dropzone"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); handle(e.dataTransfer.files[0]); }}
+        onClick={() => inputRef.current?.click()}
+      >
+        <h1>Sube una transmision</h1>
+        <p>MP4, MOV o MKV. Maximo 3 horas.</p>
+        <p className="hint">{busy ? "Subiendo..." : "Arrastra el archivo o haz clic"}</p>
+        {error && <p className="error">{error}</p>}
+        <input
+          ref={inputRef} type="file" accept=".mp4,.mov,.mkv" hidden
+          onChange={(e) => handle(e.target.files?.[0])}
+        />
       </div>
-    </main>
+      {videos.length > 0 && (
+        <div className="recent">
+          <h2>Videos procesados</h2>
+          {videos.map((v) => (
+            <button key={v.id} className="recent-item" onClick={() => onOpen(v.id)}>
+              <span>{v.title}</span>
+              <span className="muted">
+                {v.status === "ready" ? "listo" : v.status === "failed" ? "fallo" : "procesando..."}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

@@ -13,7 +13,11 @@ body { background: var(--bg); color: var(--text); }
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 .topbar { padding: 14px 24px; border-bottom: 1px solid var(--line); letter-spacing: 2px; }
 .brand b { color: var(--accent); }
-.upload, .processing { flex: 1; display: grid; place-items: center; padding: 24px; }
+.upload {
+  flex: 1; display: grid; place-items: center; align-content: start;
+  padding: 24px; overflow-y: auto;
+}
+.processing { flex: 1; display: grid; place-items: center; padding: 24px; }
 .dropzone {
   border: 2px dashed var(--line); border-radius: 12px; padding: 64px 96px;
   text-align: center; cursor: pointer; background: var(--panel);
@@ -59,7 +63,7 @@ body { background: var(--bg); color: var(--text); }
   cursor: pointer; font: inherit;
 }
 .tabs button.on { color: var(--accent); border-bottom: 2px solid var(--accent); }
-.list { overflow-y: auto; flex: 1; padding: 8px; }
+.list { overflow-y: auto; flex: 1; padding: 8px; position: relative; }
 .item {
   display: flex; gap: 10px; width: 100%; text-align: left; padding: 8px;
   background: none; border: none; color: var(--text); cursor: pointer;
@@ -93,3 +97,4 @@ body { background: var(--bg); color: var(--text); }
   padding: 0 18px; cursor: pointer; font: inherit;
 }
 .chatinput button:disabled { opacity: 0.5; cursor: default; }
+.globalsearch { margin-top: 32px; width: 100%; max-width: 720px; height: 360px; }

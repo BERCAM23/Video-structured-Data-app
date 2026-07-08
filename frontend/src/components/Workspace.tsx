@@ -3,7 +3,9 @@ import { streamUrl, type Records } from "../lib/api";
 import DataScroller from "./DataScroller";
 import ChatPanel from "./ChatPanel";
 
-export default function Workspace({ id, records }: { id: string; records: Records }) {
+export default function Workspace({
+  id, records, initialSeek,
+}: { id: string; records: Records; initialSeek?: number }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
 
@@ -22,6 +24,11 @@ export default function Workspace({ id, records }: { id: string; records: Record
           src={streamUrl(id)}
           controls
           onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onLoadedMetadata={() => {
+            if (initialSeek != null && videoRef.current) {
+              videoRef.current.currentTime = initialSeek;
+            }
+          }}
         />
         <div className="videometa">
           <h2>{records.video.title}</h2>

@@ -28,3 +28,25 @@ export function splitCitations(text: string): Part[] {
   if (last < text.length) parts.push({ kind: "text", value: text.slice(last) });
   return parts;
 }
+
+const GLOBAL_CITE_RE = /\[([^\[\]@]+?) @ (?:(\d{1,2}):)?(\d{1,2}):(\d{2})\]/g;
+
+export type GlobalPart =
+  | { kind: "text"; value: string }
+  | { kind: "cite"; value: string; title: string; seconds: number };
+
+export function splitGlobalCitations(text: string): GlobalPart[] {
+  const parts: GlobalPart[] = [];
+  let last = 0;
+  for (const m of text.matchAll(GLOBAL_CITE_RE)) {
+    const idx = m.index ?? 0;
+    if (idx > last) parts.push({ kind: "text", value: text.slice(last, idx) });
+    const title = m[1].trim();
+    const h = m[2] ? parseInt(m[2], 10) : 0;
+    const seconds = h * 3600 + parseInt(m[3], 10) * 60 + parseInt(m[4], 10);
+    parts.push({ kind: "cite", value: m[0], title, seconds });
+    last = idx + m[0].length;
+  }
+  if (last < text.length) parts.push({ kind: "text", value: text.slice(last) });
+  return parts;
+}
